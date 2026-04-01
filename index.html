@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Room Chat</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial;
+    background: #111b21;
+    color: white;
+}
+
+.top {
+    background: #202c33;
+    padding: 12px;
+    text-align: center;
+    font-size: 18px;
+}
+
+#setup {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+input {
+    margin: 10px 0;
+    padding: 12px;
+    border-radius: 20px;
+    border: none;
+    outline: none;
+}
+
+button {
+    padding: 10px;
+    border: none;
+    background: #00a884;
+    color: white;
+    border-radius: 20px;
+}
+
+#chatPage {
+    display: none;
+}
+
+#chat {
+    height: 75vh;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.msg {
+    max-width: 70%;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 10px;
+    position: relative;
+}
+
+.me {
+    background: #005c4b;
+    margin-left: auto;
+}
+
+.other {
+    background: #202c33;
+}
+
+.deleteBtn {
+    background: red;
+    color: white;
+    border: none;
+    margin-top: 5px;
+    padding: 5px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.inputBox {
+    display: flex;
+    padding: 10px;
+    background: #202c33;
+}
+
+.inputBox input {
+    flex: 1;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="top"> Room Chat App</div>
+
+<!-- SETUP -->
+<div id="setup">
+    <input id="name" placeholder="Enter your name">
+    <input id="room" placeholder="Enter Room Code (e.g 1234)">
+    <button onclick="joinChat()">Join Chat</button>
+</div>
+
+<!-- CHAT -->
+<div id="chatPage">
+    <div id="chat"></div>
+
+    <div class="inputBox">
+        <input id="msg" placeholder="Type message...">
+        <button onclick="sendMsg()"></button>
+    </div>
+</div>
+
+<audio id="notify">
+    <source src="https://www.soundjay.com/buttons/sounds/button-3.mp3">
+</audio>
+
+<!-- Firebase SDK v8 for Realtime Database -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+//  Firebase Config (tumhara provided config)
+const firebaseConfig = {
+  apiKey: "AIzaSyCgUZqggyxG3KW3grpFkA2jOyRWCbsDklE",
+  authDomain: "chatroomapp-378a0.firebaseapp.com",
+  databaseURL: "https://chatroomapp-378a0-default-rtdb.firebaseio.com",
+  projectId: "chatroomapp-378a0",
+  storageBucket: "chatroomapp-378a0.firebasestorage.app",
+  messagingSenderId: "427015203269",
+  appId: "1:427015203269:web:e8e2c06de3e55fc85983ac"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+
+let db;
+let username;
+let room;
+
+// JOIN
+function joinChat(){
+    username = document.getElementById("name").value;
+    room = document.getElementById("room").value;
+
+    if(username === "" || room === ""){
+        alert("Enter name & room");
+        return;
+    }
+
+    localStorage.setItem("name", username);
+    localStorage.setItem("room", room);
+
+    document.getElementById("setup").style.display = "none";
+    document.getElementById("chatPage").style.display = "block";
+
+    startChat();
+}
+
+// START CHAT
+function startChat(){
+    username = localStorage.getItem("name");
+    room = localStorage.getItem("room");
+
+    db = firebase.database().ref("rooms/" + room);
+
+    db.on("child_added", snap => {
+        let data = snap.val();
+        let key = snap.key;
+
+        let div = document.createElement("div");
+        div.classList.add("msg");
+        div.id = key;
+
+        if(data.name === username){
+            div.classList.add("me");
+        } else {
+            div.classList.add("other");
+            document.getElementById("notify").play();
+        }
+
+        let delBtn = "";
+        if(data.name === username){
+            delBtn = `<br><button class="deleteBtn" onclick="deleteMsg('${key}')">Delete</button>`;
+        }
+
+        div.innerHTML = `<b>${data.name}</b><br>${data.text} ${delBtn}`;
+
+        document.getElementById("chat").appendChild(div);
+
+        document.getElementById("chat").scrollTop =
+        document.getElementById("chat").scrollHeight;
+    });
+
+    // DELETE REALTIME
+    db.on("child_removed", snap => {
+        let el = document.getElementById(snap.key);
+        if(el) el.remove();
+    });
+}
+
+// SEND
+function sendMsg(){
+    let msg = document.getElementById("msg").value;
+
+    if(msg.trim() === "") return;
+
+    db.push({
+        name: username,
+        text: msg
+    });
+
+    document.getElementById("msg").value = "";
+}
+
+// DELETE
+function deleteMsg(key){
+    db.child(key).remove();
+}
+
+// AUTO LOGIN
+if(localStorage.getItem("name") && localStorage.getItem("room")){
+    document.getElementById("setup").style.display = "none";
+    document.getElementById("chatPage").style.display = "block";
+    startChat();
+}
+
+</script>
+
+</body>
+</html>
